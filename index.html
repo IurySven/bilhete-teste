@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <title>Bilhete 3D Interativo</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: transparent;
+        }
+        canvas {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <script>
+        // Configuração da cena
+        const scene = new THREE.Scene();
+
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(0, 0, 5);
+
+        const renderer = new THREE.WebGLRenderer({ alpha: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        // Ajuste automático ao redimensionar
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // Carregando texturas
+        const textureLoader = new THREE.TextureLoader();
+        const texturaFrente = textureLoader.load('img1.png'); // Imagem da frente
+        const texturaVerso = textureLoader.load('img2.png'); // Imagem do verso
+
+        // Criando materiais com transparência
+        const materialFrente = new THREE.MeshBasicMaterial({ map: texturaFrente, transparent: true });
+        const materialVerso = new THREE.MeshBasicMaterial({ map: texturaVerso, transparent: true });
+
+        // Criando bilhete com frente e verso
+        const geometria = new THREE.PlaneGeometry(3, 1.5);
+        const bilheteFrente = new THREE.Mesh(geometria, materialFrente);
+        const bilheteVerso = new THREE.Mesh(geometria, materialVerso);
+
+        bilheteVerso.rotation.y = Math.PI; // Rotaciona o verso para ficar atrás do bilhete
+
+        scene.add(bilheteFrente);
+        scene.add(bilheteVerso);
+
+        // Adicionando controles para interação
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableRotate = true;
+        controls.enableZoom = true; // Agora permite zoom!
+        controls.minDistance = 2; // Distância mínima para evitar aproximação extrema
+        controls.maxDistance = 10; // Distância máxima para evitar afastamento excessivo
+
+        // Renderização contínua
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+            renderer.render(scene, camera);
+        }
+        animate();
+    </script>
+</body>
+</html>
