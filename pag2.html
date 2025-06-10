@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <title>Página 2</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: transparent;
+        }
+        canvas {
+            display: block;
+        }
+        
+        .botao-voltar {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            width: 100px;
+            height: 40px;
+            background-color: rgba(255, 0, 0, 0.6);
+            border: none;
+            color: white;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            border-radius: 8px;
+        }
+    </style>
+</head>
+<body>
+    
+    <button class="botao-voltar" onclick="window.location.href='index.html'">Voltar</button>
+
+    <script>
+        
+        const scene = new THREE.Scene();
+        
+        // luz para criar uma sombra
+        const luz = new THREE.DirectionalLight(0xffffff, 0.5);
+        luz.position.set(5, 5, 5);
+        luz.castShadow = true;
+        scene.add(luz);
+
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(0, 0, 5);
+
+        const renderer = new THREE.WebGLRenderer({ alpha: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        
+        const textureLoader = new THREE.TextureLoader();
+        textureLoader.load('img1.png', (texturaFrente) => { //iamgem 1
+            const proporcao = texturaFrente.image.width / texturaFrente.image.height;
+            const largura = 3 * proporcao;
+            const altura = 3;
+
+            const texturaVerso = textureLoader.load('img2.png'); //imagem 2
+
+            const materialFrente = new THREE.MeshBasicMaterial({ map: texturaFrente, transparent: true });
+            const materialVerso = new THREE.MeshBasicMaterial({ map: texturaVerso, transparent: true, color: 0xcccccc });
+
+            const geometria = new THREE.PlaneGeometry(largura, altura);
+            const bilheteFrente = new THREE.Mesh(geometria, materialFrente);
+            const bilheteVerso = new THREE.Mesh(geometria, materialVerso);
+            bilheteVerso.rotation.y = Math.PI;
+
+            scene.add(bilheteFrente);
+            scene.add(bilheteVerso);
+
+            const controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableRotate = true;
+            controls.enableZoom = true;
+            controls.minDistance = 2;
+            controls.maxDistance = 10;
+
+            function animate() {
+                requestAnimationFrame(animate);
+                controls.update();
+                renderer.render(scene, camera);
+            }
+            animate();
+        });
+    </script>
+</body>
+</html>

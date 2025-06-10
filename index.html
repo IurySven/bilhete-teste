@@ -1,74 +1,221 @@
 <!DOCTYPE html>
 <html lang="pt">
 <head>
-    <meta charset="UTF-8">
-    <title>Bilhete 3D Interativo</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
-    <style>
-        body, html {
-            margin: 0;
-            padding: 0;
-            overflow: hidden;
-            background-color: transparent;
-        }
-        canvas {
-            display: block;
-        }
-    </style>
+  <meta charset="UTF-8" />
+  <title>objeto 3d</title>
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.128.0/build/three.module.js"
+    }
+  }
+  </script>
+  <style>
+    body, html, canvas {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      background-color: transparent;
+      -webkit-user-select: none;
+      -moz-user-select: none;
+      -ms-user-select: none;
+      user-select: none;
+    }
+  </style>
 </head>
 <body>
-    <script>
-        // Configuração da cena
-        const scene = new THREE.Scene();
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-app.js";
+    import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-database.js";
+    import * as THREE from "three";
+    import { OrbitControls } from "https://unpkg.com/three@0.128.0/examples/jsm/controls/OrbitControls.js";
+   
+    const firebaseConfig = {
+      apiKey: "AIzaSyC0KiDfNs9VFNAiCn0l7-4kfAjVNu2cJlA",
+      authDomain: "flores-a836a.firebaseapp.com",
+      databaseURL: "https://flores-a836a-default-rtdb.firebaseio.com",
+      projectId: "flores-a836a",
+      storageBucket: "flores-a836a.firebasestorage.app",
+      messagingSenderId: "424651372248",
+      appId: "1:424651372248:web:db7f459c463219dbc889ad"
+    };
+    
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+    
+    let editingMode = false;
+    let isDragging = false;
+    let cPressed = false, ePressed = false;
+    let globalButtonMesh = null;
+    
+    document.addEventListener('contextmenu', event => event.preventDefault());
+    
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    camera.position.set(0, 0, 5);
+    
+    const renderer = new THREE.WebGLRenderer({ alpha: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    document.body.appendChild(renderer.domElement);
+    
+    window.addEventListener("resize", () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+  
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
+    directionalLight.position.set(5, 5, 5);
+    scene.add(directionalLight);
 
-        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-        camera.position.set(0, 0, 5);
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableRotate = true;
+    controls.enableZoom = true;
+    controls.minDistance = 2;
+    controls.maxDistance = 10;
+ 
+    const raycaster = new THREE.Raycaster();
+    const mouse = new THREE.Vector2();
+    function getNormalizedPointer(event) {
+      const rect = renderer.domElement.getBoundingClientRect();
+      return new THREE.Vector2(
+        ((event.clientX - rect.left) / rect.width) * 2 - 1,
+        -((event.clientY - rect.top) / rect.height) * 2 + 1
+      );
+    }
 
-        const renderer = new THREE.WebGLRenderer({ alpha: true });
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        document.body.appendChild(renderer.domElement);
+    window.addEventListener("keydown", (event) => {
+      const key = event.key.toLowerCase();
+      if (key === "c") cPressed = true;
+      if (key === "e") ePressed = true;
+      if (cPressed && ePressed) {
+        editingMode = !editingMode;
+        console.log("Editing Mode:", editingMode);
+        controls.enableRotate = !editingMode;
 
-        // Ajuste automático ao redimensionar
-        window.addEventListener('resize', () => {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
+        cPressed = false;
+        ePressed = false;
+      }
+    });
+    
+    window.addEventListener("keyup", (event) => {
+      const key = event.key.toLowerCase();
+      if (key === "c") cPressed = false;
+      if (key === "e") ePressed = false;
+    });
+    
+    const loader = new THREE.TextureLoader();
+    loader.load("img3.png", (textureFront) => {//imagem 1
+      const ratio = textureFront.image.width / textureFront.image.height;
+      const width = 3 * ratio;
+      const height = 3;
+      
+      loader.load("img3.png", (textureBack) => {//imagem 2
+        const materialFront = new THREE.MeshBasicMaterial({ map: textureFront, transparent: true });
+        const materialBack = new THREE.MeshBasicMaterial({ map: textureBack, transparent: true, color: 0xcccccc });
+        
+        const geometry = new THREE.PlaneGeometry(width, height);
+        const frontMesh = new THREE.Mesh(geometry, materialFront);
+        const backMesh = new THREE.Mesh(geometry, materialBack);
+        backMesh.rotation.y = Math.PI;
+        
+        scene.add(frontMesh);
+        scene.add(backMesh);
+        
+        const buttonGeometry = new THREE.PlaneGeometry(1, 0.5);
+        const buttonMaterial = new THREE.MeshBasicMaterial({
+          color: 0xff0000,
+          transparent: true,
+          opacity: 0.0
         });
-
-        // Carregando texturas
-        const textureLoader = new THREE.TextureLoader();
-        const texturaFrente = textureLoader.load('img1.png'); // Imagem da frente
-        const texturaVerso = textureLoader.load('img2.png'); // Imagem do verso
-
-        // Criando materiais com transparência
-        const materialFrente = new THREE.MeshBasicMaterial({ map: texturaFrente, transparent: true });
-        const materialVerso = new THREE.MeshBasicMaterial({ map: texturaVerso, transparent: true });
-
-        // Criando bilhete com frente e verso
-        const geometria = new THREE.PlaneGeometry(3, 1.5);
-        const bilheteFrente = new THREE.Mesh(geometria, materialFrente);
-        const bilheteVerso = new THREE.Mesh(geometria, materialVerso);
-
-        bilheteVerso.rotation.y = Math.PI; // Rotaciona o verso para ficar atrás do bilhete
-
-        scene.add(bilheteFrente);
-        scene.add(bilheteVerso);
-
-        // Adicionando controles para interação
-        const controls = new THREE.OrbitControls(camera, renderer.domElement);
-        controls.enableRotate = true;
-        controls.enableZoom = true; // Agora permite zoom!
-        controls.minDistance = 2; // Distância mínima para evitar aproximação extrema
-        controls.maxDistance = 10; // Distância máxima para evitar afastamento excessivo
-
-        // Renderização contínua
-        function animate() {
-            requestAnimationFrame(animate);
-            controls.update();
-            renderer.render(scene, camera);
-        }
-        animate();
-    </script>
+        const buttonMesh = new THREE.Mesh(buttonGeometry, buttonMaterial);
+        globalButtonMesh = buttonMesh;  // Guarda referência global
+        
+        // atualiza a posição do botão a partir do firebase em tempo real
+        const buttonRef = ref(db, "buttonPosition");
+        onValue(buttonRef, (snapshot) => {
+          if (snapshot.exists()) {
+            const pos = snapshot.val();
+            buttonMesh.position.set(pos.x, pos.y, pos.z);
+            console.log("Posição atualizada:", pos);
+          } else {
+            buttonMesh.position.set(0, -0.5, 0.02);
+            console.log("Nenhuma posição encontrada; usando padrão.");
+          }
+        });
+        frontMesh.add(buttonMesh);
+        
+        renderer.domElement.addEventListener("pointerdown", (event) => {
+          if (!editingMode) return;
+          if (event.button !== 0) return; //botão esquerdo
+          const pointer = getNormalizedPointer(event);
+          raycaster.setFromCamera(pointer, camera);
+          const intersects = raycaster.intersectObject(buttonMesh, true);
+          if (intersects.length > 0) {
+            isDragging = true;
+            event.preventDefault();
+          }
+        });
+        
+        renderer.domElement.addEventListener("pointermove", (event) => {
+          if (!editingMode || !isDragging) return;
+          const pointer = getNormalizedPointer(event);
+          raycaster.setFromCamera(pointer, camera);
+          const plane = new THREE.Plane();
+          const cardWorldPos = new THREE.Vector3();
+          frontMesh.getWorldPosition(cardWorldPos);
+          const normal = new THREE.Vector3();
+          frontMesh.getWorldDirection(normal);
+          plane.setFromNormalAndCoplanarPoint(normal, cardWorldPos);
+          const intersectionPoint = new THREE.Vector3();
+          if (raycaster.ray.intersectPlane(plane, intersectionPoint)) {
+            const localPoint = intersectionPoint.clone();
+            frontMesh.worldToLocal(localPoint);
+            buttonMesh.position.set(localPoint.x, localPoint.y, 0.02);
+          }
+        });
+        
+        renderer.domElement.addEventListener("pointerup", (event) => {
+          if (!editingMode) return;
+          isDragging = false;
+          set(buttonRef, {
+            x: buttonMesh.position.x,
+            y: buttonMesh.position.y,
+            z: buttonMesh.position.z
+          }).then(() => {
+            console.log("Posição salva no Firebase.");
+          }).catch((error) => {
+            console.error("Erro ao salvar posição:", error);
+          });
+        });
+        
+        renderer.domElement.addEventListener("click", (event) => {
+          if (editingMode) {
+            event.preventDefault();
+            event.stopPropagation();
+            return;
+          }
+          const pointer = getNormalizedPointer(event);
+          raycaster.setFromCamera(pointer, camera);
+          const intersects = raycaster.intersectObject(buttonMesh, true);
+          if (intersects.length > 0) {
+            window.location.href = "pag2.html";
+          }
+        });
+      });
+    });
+    
+    // Loop de renderização — garante que o botão só seja visível em modo de edição
+    function animate() {
+      if (globalButtonMesh) {
+        globalButtonMesh.visible = editingMode;
+        globalButtonMesh.material.opacity = editingMode ? 0.5 : 0.0;
+      }
+      requestAnimationFrame(animate);
+      controls.update();
+      renderer.render(scene, camera);
+    }
+    animate();
+  </script>
 </body>
 </html>
